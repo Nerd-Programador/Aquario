@@ -1,41 +1,30 @@
 #ifndef AQUECEDOR_H
 #define AQUECEDOR_H
 
-#include "Oled.h"
+#include <Arduino.h>
 #include "DS18b20.h"
-#include "Aquecedor.h"
-#include "TTP223.h"
-#include "Lumen.h"
 #include "Logs.h"
 
-extern float temperature;
-extern const float TEMP_MIN;
-extern const float TEMP_MAX;
-extern const float TEMP_TARGET;
-
-/*********************************************************************************************************/
-
-// Definindo os pinos
 #define RELAY_PIN D1
+const float TEMP_MIN = 24.0;
+const float TEMP_MAX = 28.0;
+const float TEMP_TARGET = 26.0;
 
-void setupRelay() {
-  // Configurando o pino do relay
+void iniciarAquecedor() {
   pinMode(RELAY_PIN, OUTPUT);
-  digitalWrite(RELAY_PIN, LOW);  // Inicialmente, relay desligado
+  digitalWrite(RELAY_PIN, LOW); // Inicialmente, relay desligado
+  adicionarLog("Aquecedor inicializado");
 }
 
-void loopRelay() {
-  unsigned long currentMillis = millis();
+void controlarAquecedor() {
+  float temperature = obterTemperatura();
 
-  if (currentMillis - previousMillis >= interval) {
-    previousMillis = currentMillis;
-
-    // Controle do aquecedor
-    if (temperature <= TEMP_MIN) {
-      digitalWrite(RELAY_PIN, HIGH);  // Liga o aquecedor
-    } else if (temperature >= TEMP_TARGET) {
-      digitalWrite(RELAY_PIN, LOW);  // Desliga o aquecedor
-    }
+  if (temperature <= TEMP_MIN) {
+    digitalWrite(RELAY_PIN, HIGH); // Liga o aquecedor
+    adicionarLog("Aquecedor ligado - Temp: " + String(temperature) + "C");
+  } else if (temperature >= TEMP_TARGET) {
+    digitalWrite(RELAY_PIN, LOW); // Desliga o aquecedor
+    adicionarLog("Aquecedor desligado - Temp: " + String(temperature) + "C");
   }
 }
 

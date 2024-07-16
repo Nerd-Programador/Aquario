@@ -1,80 +1,58 @@
 #ifndef OTA_H
-#define OTA_h
+#define OTA_H
 
+#include <ESP8266WiFi.h>
+#include <ESP8266mDNS.h>
+#include <WiFiUdp.h>
+#include <ArduinoOTA.h>
 #include "Oled.h"
-#include "DS18b20.h"
-#include "Aquecedor.h"
-#include "TTP223.h"
-#include "Lumen.h"
 #include "Logs.h"
 
-void setupOTA() {
-  // Configurando WiFi
+void iniciarWiFi(const char* ssid, const char* password) {
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
   Serial.println("Connected to WiFi");
-  display.clearDisplay();
-  display.setCursor(0, 0);
-  display.print("Connected to WiFi");
-  display.display();
-  
-  // Configurando OTA
+  mostrarMensagem("Connected to WiFi");
+  adicionarLog("Conectado ao WiFi");
+}
+
+void iniciarOTA() {
   ArduinoOTA.onStart([]() {
     String type;
     if (ArduinoOTA.getCommand() == U_FLASH) {
       type = "sketch";
-    } else { // U_SPIFFS
+    } else {
       type = "filesystem";
     }
-    // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
-    display.clearDisplay();
-    display.setCursor(0, 0);
-    display.print("Start updating " + type);
-    display.display();
+    mostrarMensagem("Start updating " + type);
+    adicionarLog("Iniciando atualização OTA: " + type);
   });
   ArduinoOTA.onEnd([]() {
-    display.clearDisplay();
-    display.setCursor(0, 0);
-    display.print("Update Complete");
-    display.display();
+    mostrarMensagem("Update Complete");
+    adicionarLog("Atualização OTA concluída");
   });
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-    display.clearDisplay();
-    display.setCursor(0, 0);
-    display.print("Progress: ");
-    display.print(progress / (total / 100));
-    display.print("%");
-    display.display();
+    mostrarMensagem("Progress: " + String(progress / (total / 100)) + "%");
+    adicionarLog("Progresso OTA: " + String(progress / (total / 100)) + "%");
   });
   ArduinoOTA.onError([](ota_error_t error) {
-    display.clearDisplay();
-    display.setCursor(0, 0);
-    display.print("Error[" + String(error) + "]: ");
-    if (error == OTA_AUTH_ERROR) {
-      display.print("Auth Failed");
-    } else if (error == OTA_BEGIN_ERROR) {
-      display.print("Begin Failed");
-    } else if (error == OTA_CONNECT_ERROR) {
-      display.print("Connect Failed");
-    } else if (error == OTA_RECEIVE_ERROR) {
-      display.print("Receive Failed");
-    } else if (error == OTA_END_ERROR) {
-      display.print("End Failed");
-    }
-    display.display();
+    mostrarMensagem("Error[" + String(error) + "]: " + String(error == OTA_AUTH_ERROR ? "Auth Failed" : 
+                      error == OTA_BEGIN_ERROR ? "Begin Failed" : 
+                      error == OTA_CONNECT_ERROR ? "Connect Failed" : 
+                      error == OTA_RECEIVE_ERROR ? "Receive Failed" : "End Failed"));
+    adicionarLog("Erro OTA[" + String(error) + "]: " + String(error == OTA_AUTH_ERROR ? "Auth Failed" : 
+                  error == OTA_BEGIN_ERROR ? "Begin Failed" : 
+                  error == OTA_CONNECT_ERROR ? "Connect Failed" : 
+                  error == OTA_RECEIVE_ERROR ? "Receive Failed" : "End Failed"));
   });
   ArduinoOTA.begin();
-
 }
 
-void loopOTA() {
+void atualizarOTA() {
   ArduinoOTA.handle();
-
-  
-
 }
 
 #endif

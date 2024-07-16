@@ -1,45 +1,33 @@
 #ifndef TTP223_H
-#define TTP223_h
+#define TTP223_H
 
-#include "Oled.h"
-#include "DS18b20.h"
-#include "Aquecedor.h"
+#include <Arduino.h>
 #include "Lumen.h"
 #include "Logs.h"
 
-/*********************************************************************************************************/
+#define TOUCH_PIN D4
+unsigned long touchMillis = 0;
+const int debounceDelay = 50;
 
-void setupTTP() {
+void iniciarTTP223() {
+  pinMode(TOUCH_PIN, INPUT);
+  adicionarLog("TTP223 inicializado");
 }
 
-void loopTTP() {
-  // Alternar modos de iluminação
-  if (digitalRead(TOUCH_PIN) == HIGH) {
-    delay(50);  // Debounce
-    if (digitalRead(TOUCH_PIN) == HIGH) {
-      mode = (mode + 1) % 5;  // Alterna entre os modos 0 a 4 (modo 0 é apagado)
-      delay(300);             // Para evitar múltiplas detecções
-    }
+void verificarTTP223() {
+  static int touchState = LOW;
+  int reading = digitalRead(TOUCH_PIN);
+  
+  if (reading != touchState) {
+    touchMillis = millis();
   }
 
-  switch (mode) {
-    case 0:
-      FastLED.clear();
-      FastLED.show();
-      break;
-    case 1:
-      binaryLighting();
-      break;
-    case 2:
-      dayNightCycle();
-      break;
-    case 3:
-      binaryRGBLighting();
-      break;
-    case 4:
-      rainbowCycle();
-      break;
+  if ((millis() - touchMillis) > debounceDelay) {
+    if (reading == HIGH) {
+      alternarModoLumen();
+    }
   }
+  touchState = reading;
 }
 
 #endif
