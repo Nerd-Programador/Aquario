@@ -1,38 +1,152 @@
 #ifndef LUMEN_H
 #define LUMEN_H
 
-#include <FastLED.h>
-#include "Logs.h"
+#include <Adafruit_NeoPixel.h>
 
-#define LED_PIN     D3
-#define NUM_LEDS    50
-#define BRIGHTNESS  64
-#define LED_TYPE    WS2812B
-#define COLOR_ORDER GRB
+// Definição dos pinos para LED e botão
+#if defined(ESP8266)
+  #define LED_PIN D4
+  #define BUTTON_PIN D3
+#elif defined(ESP32)
+  #define LED_PIN 2
+  #define BUTTON_PIN 11
+#else
+  #error "Placa não suportada"
+#endif
 
-CRGB leds[NUM_LEDS];
-unsigned long previousMillisLED = 0;
-const long intervalLED = 5000;
-int mode = 0; // Modo de iluminação
+// Incluir os arquivos de cabeçalho dos efeitos
+#include "Iluminacao/binaryLighting.h"
+#include "Iluminacao/dayNightCycle.h"
+#include "Iluminacao/binaryRGB.h"
+#include "Iluminacao/rainbowCycle.h"
+#include "Iluminacao/plantGrowth.h"
+#include "Iluminacao/sunriseSunset.h"
+#include "Iluminacao/stormEffect.h"
+#include "Iluminacao/moonlightEffect.h"
+#include "Iluminacao/waveEffect.h"
+#include "Iluminacao/bubblesEffect.h"
+// Inclua outros modos conforme necessário
 
-void iniciarLumen() {
-  FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
-  FastLED.setBrightness(BRIGHTNESS);
-  adicionarLog("Lumen inicializado");
+void binaryLighting();
+void dayNightCycle();
+void binaryRGB();
+void rainbowCycle();
+void plantGrowth();
+void sunriseSunset();
+void stormEffect();
+void moonlightEffect();
+void waveEffect();
+void bubblesEffect();
+
+#define NUM_LEDS 74
+#define BRIGHTNESS 255
+#define DEBOUNCE_DELAY 50
+
+Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUM_LEDS, LED_PIN, NEO_GRB + NEO_KHZ800);
+
+int mode = 0;
+unsigned long lastUpdate = 0;
+unsigned long modeInterval = 5000;
+unsigned long lastDebounceTime = 0;
+bool buttonPressed = false;
+bool buttonState = false; // Novo estado do botão
+
+void setupLumen() {
+  strip.begin();
+  strip.show();  // Inicializa todos os LEDs como apagados
+  strip.setBrightness(BRIGHTNESS);
+  pinMode(BUTTON_PIN, INPUT);
+  Serial.println("Lumen inicializado");
 }
 
-void controlarLumen() {
-  unsigned long currentMillis = millis();
+void desligado() {
+  for (int i = 0; i < NUM_LEDS; i++) {
+    strip.setPixelColor(i, 0); // Define todos os LEDs como apagados
+  }
+  strip.show();
+}
 
-  if (currentMillis - previousMillisLED >= intervalLED && mode == 3) {
-    previousMillisLED = currentMillis;
-    rainbowCycle();
+void imprimirNomeModo() {
+  switch (mode) {
+    case 0:
+      Serial.println("Desligado");
+      mostrarMensagem("LEDs Desligado");
+      break;
+    case 1:
+      Serial.println("Modo binaryLighting");
+      mostrarMensagem("Binary Lighting");
+      break;
+    case 2:
+      Serial.println("Modo dayNightCycle");
+      mostrarMensagem("Day Night Cycle");
+      break;
+    case 3:
+      Serial.println("Modo binaryRGB");
+      mostrarMensagem("Binary RGB");
+      break;
+    case 4:
+      Serial.println("Modo rainbowCycle");
+      mostrarMensagem("Rainbow Cycle");
+      break;
+    case 5:
+      Serial.println("Modo plantGrowth");
+      mostrarMensagem("Plant Growth");
+      break;
+    case 6:
+      Serial.println("Modo sunriseSunset");
+      mostrarMensagem("Sunrise Sunset");
+      break;
+    case 7:
+      Serial.println("Modo stormEffect");
+      mostrarMensagem("Storm Effect");
+      break;
+    case 8:
+      Serial.println("Modo moonlightEffect");
+      mostrarMensagem("Moon Light Effect");
+      break;
+    case 9:
+      Serial.println("Modo waveEffect");
+      mostrarMensagem("Wave Effect");
+      break;
+    case 10:
+      Serial.println("Modo bubblesEffect");
+      mostrarMensagem("Bubbles Effect");
+      break;
+    default:
+      Serial.println("Modo desconhecido: " + String(mode));
+      break;
+  }
+}
+
+void alternarModoLumen() {
+  mode++;
+  if (mode > 10) { // Ajuste o limite de acordo com o número de modos
+    mode = 0;
+  }
+  imprimirNomeModo();
+}
+
+void loopLumen() {
+  unsigned long currentTime = millis();
+  bool reading = digitalRead(BUTTON_PIN);
+
+  if (reading != buttonState) {
+    lastDebounceTime = currentTime;
+    buttonState = reading;
+  }
+
+  if ((currentTime - lastDebounceTime) > DEBOUNCE_DELAY) {
+    if (buttonState == HIGH && !buttonPressed) {
+      buttonPressed = true;
+      alternarModoLumen();
+    } else if (buttonState == LOW) {
+      buttonPressed = false;
+    }
   }
 
   switch (mode) {
     case 0:
-      FastLED.clear();
-      FastLED.show();
+      desligado();
       break;
     case 1:
       binaryLighting();
@@ -41,51 +155,32 @@ void controlarLumen() {
       dayNightCycle();
       break;
     case 3:
-      binaryRGBLighting();
+      binaryRGB();
       break;
     case 4:
       rainbowCycle();
       break;
+    case 5:
+      plantGrowth();
+      break;
+    case 6:
+      sunriseSunset();
+      break;
+    case 7:
+      stormEffect();
+      break;
+    case 8:
+      moonlightEffect();
+      break;
+    case 9:
+      waveEffect();
+      break;
+    case 10:
+      bubblesEffect();
+      break;
   }
-}
 
-void binaryLighting() {
-  for(int i = 0; i < NUM_LEDS; i++) {
-    if (i % 2 == 0) {
-      leds[i] = CRGB::White;
-    } else {
-      leds[i] = CRGB::Black;
-    }
-  }
-  FastLED.show();
-}
-
-void dayNightCycle() {
-  unsigned long currentMillis = millis();
-  int brightness = (sin(currentMillis / 100000.0 * PI) + 1) * 127;
-  fill_solid(leds, NUM_LEDS, CRGB(brightness, brightness, brightness));
-  FastLED.show();
-}
-
-void binaryRGBLighting() {
-  for(int i = 0; i < NUM_LEDS; i++) {
-    if (i % 2 == 0) {
-      leds[i] = CHSV((i * 10 + millis() / 100) % 255, 255, 255);
-    } else {
-      leds[i] = CRGB::Black;
-    }
-  }
-  FastLED.show();
-}
-
-void rainbowCycle() {
-  fill_rainbow(leds, NUM_LEDS, millis() / 10, 255 / NUM_LEDS);
-  FastLED.show();
-}
-
-void alternarModoLumen() {
-  mode = (mode + 1) % 5;
-  adicionarLog("Modo de iluminação alternado para: " + String(mode));
+  lastUpdate = currentTime;
 }
 
 #endif

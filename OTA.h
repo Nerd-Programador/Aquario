@@ -1,57 +1,83 @@
 #ifndef OTA_H
 #define OTA_H
 
+#if defined(ESP8266)
 #include <ESP8266WiFi.h>
-#include <ESP8266mDNS.h>
-#include <WiFiUdp.h>
+#elif defined(ESP32)
+#include <WiFi.h>
+#else
+#error "Placa não suportada"
+#endif
+
 #include <ArduinoOTA.h>
-#include "Oled.h"
 #include "Logs.h"
 
-void iniciarWiFi(const char* ssid, const char* password) {
+const char* ssid = "Marina";
+const char* password = "1Betania2Doidinhos";
+const char* hostname = "Aquario";
+
+IPAddress local_IP(192, 168, 15, 90);
+IPAddress gateway(192, 168, 15, 1);
+IPAddress subnet(255, 255, 255, 0);
+IPAddress dns1(8, 8, 8, 8);
+IPAddress dns2(8, 8, 4, 4);
+
+void setupWiFi() {
+#if defined(ESP8266)
+  WiFi.hostname(hostname);
+#elif defined(ESP32)
+  WiFi.setHostname(hostname);
+#endif
+
+  if (!WiFi.config(local_IP, gateway, subnet, dns1, dns2)) {
+    adicionarLog("Falha na configuração do IP estático");
+  }
+
   WiFi.begin(ssid, password);
+  adicionarLog("Conectando ao Wi-Fi...");
+
   while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
+    delay(1000);
     Serial.print(".");
   }
-  Serial.println("Connected to WiFi");
-  mostrarMensagem("Connected to WiFi");
-  adicionarLog("Conectado ao WiFi");
+
+  adicionarLog("Conectado ao Wi-Fi");
+  adicionarLog("Endereço IP: " + WiFi.localIP().toString());
 }
 
-void iniciarOTA() {
+void setupOTA() {
+  setupWiFi();
+  ArduinoOTA.setHostname(hostname);
+  ArduinoOTA.setPassword("258096");
+
   ArduinoOTA.onStart([]() {
-    String type;
-    if (ArduinoOTA.getCommand() == U_FLASH) {
-      type = "sketch";
-    } else {
-      type = "filesystem";
-    }
-    mostrarMensagem("Start updating " + type);
-    adicionarLog("Iniciando atualização OTA: " + type);
+    String type = (ArduinoOTA.getCommand() == U_FLASH) ? "Atualização de sketch" : "Atualização do sistema de arquivos";
+    adicionarLog("Iniciando OTA: " + type);
   });
+
   ArduinoOTA.onEnd([]() {
-    mostrarMensagem("Update Complete");
-    adicionarLog("Atualização OTA concluída");
+    adicionarLog("OTA concluída");
   });
+
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-    mostrarMensagem("Progress: " + String(progress / (total / 100)) + "%");
-    adicionarLog("Progresso OTA: " + String(progress / (total / 100)) + "%");
+    Serial.printf("Progresso: %u%%\r", (progress / (total / 100)));
   });
+
   ArduinoOTA.onError([](ota_error_t error) {
-    mostrarMensagem("Error[" + String(error) + "]: " + String(error == OTA_AUTH_ERROR ? "Auth Failed" : 
-                      error == OTA_BEGIN_ERROR ? "Begin Failed" : 
-                      error == OTA_CONNECT_ERROR ? "Connect Failed" : 
-                      error == OTA_RECEIVE_ERROR ? "Receive Failed" : "End Failed"));
-    adicionarLog("Erro OTA[" + String(error) + "]: " + String(error == OTA_AUTH_ERROR ? "Auth Failed" : 
-                  error == OTA_BEGIN_ERROR ? "Begin Failed" : 
-                  error == OTA_CONNECT_ERROR ? "Connect Failed" : 
-                  error == OTA_RECEIVE_ERROR ? "Receive Failed" : "End Failed"));
+    String errorMsg = "Erro OTA: ";
+    if (error == OTA_AUTH_ERROR) errorMsg += "Falha na autenticação";
+    else if (error == OTA_BEGIN_ERROR) errorMsg += "Falha no início";
+    else if (error == OTA_CONNECT_ERROR) errorMsg += "Falha na conexão";
+    else if (error == OTA_RECEIVE_ERROR) errorMsg += "Falha no recebimento";
+    else if (error == OTA_END_ERROR) errorMsg += "Falha no término";
+    adicionarLog(errorMsg);
   });
+
   ArduinoOTA.begin();
+  adicionarLog("OTA inicializado");
 }
 
-void atualizarOTA() {
+void loopOTA() {
   ArduinoOTA.handle();
 }
 

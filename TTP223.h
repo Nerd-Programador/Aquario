@@ -1,33 +1,46 @@
-#ifndef TTP223_H
+/*#ifndef TTP223_H
 #define TTP223_H
 
-#include <Arduino.h>
 #include "Lumen.h"
 #include "Logs.h"
 
-#define TOUCH_PIN D4
-unsigned long touchMillis = 0;
-const int debounceDelay = 50;
+extern void alternarModoLumen();
 
-void iniciarTTP223() {
-  pinMode(TOUCH_PIN, INPUT);
+#if defined(ESP8266)
+  #define TTP223_PIN D3
+#elif defined(ESP32)
+  #define TTP223_PIN 11
+#else
+  #error "Placa não suportada"
+#endif
+
+void setupTTP223() {
+  pinMode(TTP223_PIN, INPUT);
   adicionarLog("TTP223 inicializado");
+  Serial.println("TTP223 inicializado");
 }
 
-void verificarTTP223() {
-  static int touchState = LOW;
-  int reading = digitalRead(TOUCH_PIN);
-  
-  if (reading != touchState) {
-    touchMillis = millis();
-  }
+void loopTTP223() {
+  static unsigned long lastTouchTime = 0;
+  static int touchCount = 0;
 
-  if ((millis() - touchMillis) > debounceDelay) {
-    if (reading == HIGH) {
-      alternarModoLumen();
+  if (digitalRead(TTP223_PIN) == HIGH) {
+    unsigned long now = millis();
+    Serial.println("TTP223 detectou toque");
+    if (now - lastTouchTime < 500) {
+      touchCount++;
+      if (touchCount == 2) {
+        Serial.println("Alternando modo Lumen");
+        alternarModoLumen();
+        touchCount = 0;
+      }
+    } else {
+      touchCount = 1;
     }
+    lastTouchTime = now;
   }
-  touchState = reading;
 }
 
 #endif
+
+*/
